@@ -2,7 +2,6 @@ const fs = require('fs').promises;
 const axios = require('axios');
 const xml2js = require('xml2js');
 const database = require('./database');
-const diff = require('diff');
 
 async function readDomains() {
     try {
@@ -41,10 +40,12 @@ async function fetchAndParseSitemap(url) {
 }
 
 function compareSitemaps(oldSitemap, newSitemap) {
-    if (!oldSitemap) return {
-        status: 'New sitemap',
-        changes: 'Initial sitemap version'
-    };
+    if (!oldSitemap) {
+        return {
+            status: 'New sitemap',
+            changes: 'Initial sitemap version'
+        };
+    }
 
     if (oldSitemap === newSitemap) {
         return null;
@@ -91,14 +92,12 @@ async function checkDomain(domain) {
         domain = 'https://' + domain;
     }
 
-    let sitemapUrl = `${domain}/sitemap.xml`;
-    let sitemap = await fetchAndParseSitemap(sitemapUrl);
+    let sitemap = await fetchAndParseSitemap(`${domain}/sitemap.xml`);
 
     if (!sitemap) {
         const robotsSitemap = await fetchSitemapFromRobots(domain);
         if (robotsSitemap) {
             sitemap = await fetchAndParseSitemap(robotsSitemap);
-            sitemapUrl = robotsSitemap;
         }
     }
 
@@ -109,7 +108,7 @@ async function checkDomain(domain) {
 
     const oldData = await database.getWebsite(domain);
     const diffResult = compareSitemaps(oldData?.sitemap, sitemap);
-    
+
     if (diffResult) {
         await database.updateWebsite(domain, sitemap, diffResult.changes);
         console.log(`${domain}: ${diffResult.status}`);
@@ -124,7 +123,7 @@ async function checkDomain(domain) {
 async function main() {
     await database.connect();
     const domains = await readDomains();
-    
+
     for (const domain of domains) {
         await checkDomain(domain.trim());
     }
